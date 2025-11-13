@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Simulador de Notificações KVN</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 50px;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 5px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    /* estilo inspirado na notificação do anexo: pill com blur e tipografia similar */
+    .notificacao {
+  background: rgba(18,18,18,0.55); /* leve transparência escura */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  padding: 14px 18px;
+  margin: 8px 0;
+  min-width: 360px;
+  max-width: 640px;
+  display: flex;
+  align-items: center;
+  border-radius: 28px; /* formato pill */
+  animation: fadeIn 0.35s ease-in-out;
+  position: relative;
+}
+
+.titulo, .linha {
+  color: #ffffff; /* letras brancas */
+}
+
+
+
+    /* logo quadrada com cantos levemente arredondados, semelhante ao anexo */
+    .logo {
+      width: 46px;
+      height: 46px;
+      margin-right: 16px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 1px solid rgba(0,0,0,0.2);
+      background: #000;
+    }
+
+        /* tipografia: usar stack de fontes sistema parecidas com a da imagem (iOS/Android/system) */
+        .titulo {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 2px;
+      font-size: 16px;
+    }
+
+.linha {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  color: #ffffff;
+  margin: 1px 0;
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.tempo {
+  color: #d3d3d3;
+  font-size: 13px;
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  text-transform: lowercase;
+  opacity: 0.95;
+}
+
+      .texto {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* centraliza verticalmente */
+  margin-top: -6px; /* sobe o texto um pouco sem passar sobre a imagem */
+}
+
+          /* container fixo no canto inferior direito */
+          #container {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            display: flex;
+            flex-direction: column-reverse; /* para empilhar as notificações para cima */
+            gap: 8px;
+            align-items: flex-end;
+            z-index: 9999;
+            pointer-events: none; /* permite clicar através, exceto nos elementos que tiverem pointer-events explicitamente */
+          }
+
+          /* permitir interação com elementos internos da notificação */
+          .notificacao * { pointer-events: auto; }
+
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;">
+  <input type="text" id="valorInput" placeholder="Digite o valor da comissão (ex: 90,25)">
+  <button onclick="gerarNotificacao()">Simular Venda</button>
+  <button id="enableSystemBtn" style="padding:8px 10px">Ativar notificações do sistema</button>
+    <label style="font-size:14px;color:#333;margin-left:6px;display:flex;align-items:center;gap:6px;">
+      <input type="checkbox" id="useTime"> Usar horário customizado
+    </label>
+    <input type="time" id="timeInput" style="display:inline-block"> 
+  </div>
+
+  <div id="container" aria-live="polite"></div>
+
+  <script>
+    function gerarNotificacao() {
+      const valor = document.getElementById('valorInput').value.trim();
+      if (!valor || !valor.match(/^\d+,\d{2}$/)) {
+        alert("Digite um valor válido no formato 90,25");
+        return;
+      }
+
+      // decidir timestamp: agora ou horário customizado (assume hoje)
+      let timestamp = Date.now();
+      const useTime = document.getElementById('useTime');
+      const timeInput = document.getElementById('timeInput');
+      if (useTime && useTime.checked) {
+        const t = timeInput.value;
+        if (!t) {
+          alert('Escolha um horário válido');
+          return;
+        }
+        const [hh, mm] = t.split(':').map(v => Number(v));
+        const d = new Date();
+        d.setHours(hh, mm, 0, 0);
+        timestamp = d.getTime();
+      }
+
+      const container = document.getElementById('container');
+      const div = document.createElement('div');
+      div.className = 'notificacao';
+
+      const img = document.createElement('img');
+      img.src = "./img/logo.png";
+      img.alt = "Logo KVN";
+      img.className = 'logo';
+
+      const textoDiv = document.createElement('div');
+      textoDiv.className = 'texto';
+
+      const titulo = document.createElement('div');
+      titulo.className = 'titulo';
+      titulo.textContent = '';
+
+      const linha1 = document.createElement('div');
+      linha1.className = 'linha';
+      linha1.textContent = 'Venda aprovada - Pix';
+
+      const linha2 = document.createElement('div');
+      linha2.className = 'linha';
+      linha2.textContent = `Sua comissão: R$ ${valor}`;
+
+      // criar elemento de tempo (timestamp)
+      const tempo = document.createElement('div');
+      tempo.className = 'tempo';
+      tempo.dataset.ts = timestamp; // guarda timestamp para atualizações
+      tempo.textContent = formatTimeLabel(timestamp);
+
+      textoDiv.appendChild(titulo);
+      textoDiv.appendChild(linha1);
+      textoDiv.appendChild(linha2);
+      textoDiv.appendChild(tempo);
+
+      div.appendChild(img);
+      div.appendChild(textoDiv);
+  // append + container with column-reverse garante que as notificações apareçam para cima
+  container.appendChild(div);
+
+  // também disparar notificação do sistema (apenas enquanto o site estiver aberto e permissão concedida)
+  showSystemNotification(linha1.textContent, linha2.textContent, './img/logo.png', timestamp, { url: window.location.href });
+
+      document.getElementById('valorInput').value = '';
+    }
+
+    // formata o rótulo do tempo: "Há X" enquanto < 60 minutos, caso contrário mostra HH:MM
+    function formatTimeLabel(ts) {
+      const diff = Date.now() - Number(ts);
+      const sec = Math.floor(diff / 1000);
+      if (sec < 5) return 'agora';
+      if (sec < 60) return `há ${sec}s`;
+      const min = Math.floor(sec / 60);
+      if (min < 60) return `há ${min}m`;
+      // para notificações com mais de 60 minutos, mostramos o horário exato (HH:MM)
+      const d = new Date(Number(ts));
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // atualiza periodicamente todos os elementos .tempo para refletir o tempo decorrido
+    setInterval(() => {
+      document.querySelectorAll('.tempo').forEach(el => {
+        const ts = el.dataset.ts;
+        if (ts) el.textContent = formatTimeLabel(ts);
+      });
+    }, 15000); // atualiza a cada 15s
+
+    // define valor padrão do input time para a hora atual (formato HH:MM)
+    (function setDefaultTime() {
+      const ti = document.getElementById('timeInput');
+      if (!ti) return;
+      const d = new Date();
+      const pad = n => n.toString().padStart(2, '0');
+      ti.value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    })();
+
+    // Notification API (mostrar notificações do sistema apenas enquanto o site estiver aberto)
+    let systemNotificationsEnabled = false;
+    const enableBtn = document.getElementById('enableSystemBtn');
+    if (enableBtn) enableBtn.addEventListener('click', async () => {
+      if (!('Notification' in window)) {
+        alert('Notificações não são suportadas neste navegador');
+        return;
+      }
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+          systemNotificationsEnabled = true;
+          enableBtn.textContent = 'Notificações ativadas';
+          enableBtn.disabled = true;
+        } else {
+          alert('Permissão de notificação negada');
+        }
+      } catch (e) {
+        console.error('Erro pedindo permissão:', e);
+      }
+    });
+
+    // helper: mostra notificação do sistema (apenas quando permissão concedida)
+    function showSystemNotification(title, body, icon, timestamp, data) {
+      try {
+        if (!systemNotificationsEnabled) return;
+        if (Notification.permission !== 'granted') return;
+        const opts = {
+          body,
+          icon: icon || '/img/logo.png',
+          badge: icon || '/img/logo.png',
+          timestamp: timestamp || Date.now(),
+          data: data || {}
+        };
+        const n = new Notification(title, opts);
+        n.onclick = function (ev) {
+          window.focus();
+          if (opts.data && opts.data.url) window.location.href = opts.data.url;
+          this.close();
+        };
+        return n;
+      } catch (err) {
+        console.warn('Erro ao criar notificação do sistema', err);
+      }
+    }
+  </script>
+
+</body>
+</html>
