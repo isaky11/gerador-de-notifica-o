@@ -2,6 +2,7 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
+  <link rel="manifest" href="/manifest.json">
   <title>Simulador de Notificações KVN</title>
   <style>
     body {
@@ -105,6 +106,21 @@
           /* permitir interação com elementos internos da notificação */
           .notificacao * { pointer-events: auto; }
 
+          /* toast simples para instruções no mobile */
+          .toast {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 90px;
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 10000;
+            display: none;
+          }
+
 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-10px); }
@@ -125,6 +141,7 @@
   </div>
 
   <div id="container" aria-live="polite"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
     function gerarNotificacao() {
@@ -132,6 +149,30 @@
       if (!valor || !valor.match(/^\d+,\d{2}$/)) {
         alert("Digite um valor válido no formato 90,25");
         return;
+      }
+
+      // se o navegador suporta Notification, mas a permissão não foi concedida,
+      // tentamos solicitar permissão automaticamente (necessário gesto do usuário)
+      if ('Notification' in window && !systemNotificationsEnabled) {
+        // se a permissão já foi negada, mostra um toast com instruções para habilitar
+        if (Notification.permission === 'denied') {
+          showToast('Permissão de notificações negada. Ative nas configurações do site no navegador.');
+        } else if (Notification.permission !== 'granted') {
+          // tentar pedir permissão (esse pedido deve ser em resposta a um gesto do usuário, e aqui está)
+          try {
+            Notification.requestPermission().then(p => {
+              if (p === 'granted') {
+                systemNotificationsEnabled = true;
+                const btn = document.getElementById('enableSystemBtn');
+                if (btn) { btn.textContent = 'Notificações ativadas'; btn.disabled = true; }
+              } else if (p === 'denied') {
+                showToast('Você negou notificações. Para ativar, vá em Configurações do site → Notificações.');
+              }
+            });
+          } catch (e) {
+            console.warn('Erro ao pedir permissão de notificação:', e);
+          }
+        }
       }
 
       // decidir timestamp: agora ou horário customizado (assume hoje)
@@ -226,6 +267,15 @@
       ti.value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     })();
 
+    // registrar service worker para PWA/caching (se suportado)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          console.log('Service Worker registrado', reg.scope);
+        }).catch(err => console.warn('Erro registrando SW:', err));
+      });
+    }
+
     // Notification API (mostrar notificações do sistema apenas enquanto o site estiver aberto)
     let systemNotificationsEnabled = false;
     const enableBtn = document.getElementById('enableSystemBtn');
@@ -270,6 +320,16 @@
       } catch (err) {
         console.warn('Erro ao criar notificação do sistema', err);
       }
+    }
+
+    // small toast helper to show messages on mobile
+    function showToast(msg, ms = 4000) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(t._timeout);
+      t._timeout = setTimeout(() => { t.style.display = 'none'; }, ms);
     }
   </script>
 
