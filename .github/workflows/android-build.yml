@@ -26,12 +26,23 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
 
-      - name: Install Android SDK (platform-tools, build-tools)
-        uses: r0adkll/install-android-sdk@v2
-        with:
-          api-levels: 33
-          build-tools: '33.0.2'
-          ndk: ''
+      - name: Install Android command-line tools and SDK packages
+        run: |
+          set -e
+          echo "Installing Android command-line tools..."
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          cd $ANDROID_SDK_ROOT/cmdline-tools
+          # download the command-line tools (latest known package)
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip -d $ANDROID_SDK_ROOT/cmdline-tools || true
+          # move to 'latest' folder expected by sdkmanager
+          if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" ]; then
+            mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest || true
+          fi
+          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          echo "Android SDK components installed."
 
       - name: Show Java and sdk versions
         run: |
