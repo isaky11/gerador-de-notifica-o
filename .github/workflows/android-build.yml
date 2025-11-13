@@ -20,11 +20,11 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Set up Java (Temurin 11)
+      - name: Set up Java (Temurin 17)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: '17'
 
       - name: Install Android command-line tools and SDK packages
         run: |
