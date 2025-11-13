@@ -61,9 +61,15 @@ jobs:
         run: |
           npm install @capacitor/cli @capacitor/core --no-save
 
-      - name: Add Android platform (if missing)
+      - name: Add Android platform (will fail if it cannot be added)
         run: |
-          npx cap add android || true
+          set -e
+          echo "Adding Android platform (Capacitor)..."
+          npx cap add android
+          echo "Listing repo root after cap add:"
+          ls -la
+          echo "Listing android/ directory (if created):"
+          ls -la android || true
 
       - name: Copy web assets to Android
         run: |
@@ -74,8 +80,18 @@ jobs:
           chmod +x android/gradlew || true
 
       - name: Build APK (debug)
-        working-directory: android
         run: |
+          set -e
+          if [ ! -d "android" ]; then
+            echo "ERROR: android/ directory not found. 'npx cap add android' must create it."
+            echo "Workspace content:"; ls -la
+            exit 1
+          fi
+          cd android
+          if [ ! -f "gradlew" ]; then
+            echo "gradlew not found in android/. Listing android/:"; ls -la
+            exit 1
+          fi
           ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK artifact
