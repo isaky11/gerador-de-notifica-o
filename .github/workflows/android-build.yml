@@ -41,8 +41,11 @@ jobs:
           fi
           export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
           yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-33" "platforms;android-34" "build-tools;33.0.2" "build-tools;34.0.0"
+          sdkmanager "platform-tools" "platforms;android-33" "platforms;android-34" "platforms;android-35" "build-tools;33.0.2" "build-tools;34.0.0" "build-tools;35.0.0"
           echo "Android SDK components installed."
+
+      - name: Install latest Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Show Java and sdk versions
         run: |
@@ -59,7 +62,7 @@ jobs:
 
       - name: Install Capacitor CLI and Android runtime
         run: |
-          npm install @capacitor/cli @capacitor/core @capacitor/android --no-save
+          npm install @capacitor/cli@latest @capacitor/core@latest @capacitor/android@latest --no-save
 
       - name: Add Android platform (will fail if it cannot be added)
         run: |
@@ -70,6 +73,19 @@ jobs:
           ls -la
           echo "Listing android/ directory (if created):"
           ls -la android || true
+
+      - name: Update Android build.gradle to use SDK 35
+        run: |
+          set -e
+          if [ -f "android/app/build.gradle" ]; then
+            echo "Updating compileSdkVersion, targetSdkVersion, and buildToolsVersion to 35..."
+            sed -i 's/compileSdkVersion [0-9]\+/compileSdkVersion 35/g' android/app/build.gradle
+            sed -i 's/targetSdkVersion [0-9]\+/targetSdkVersion 35/g' android/app/build.gradle
+            sed -i 's/buildToolsVersion "[0-9.]\+"/buildToolsVersion "35.0.0"/g' android/app/build.gradle
+            echo "Updated android/app/build.gradle"
+          else
+            echo "android/app/build.gradle not found yet (will be created)"
+          fi
 
       - name: Copy web assets to Android
         run: |
