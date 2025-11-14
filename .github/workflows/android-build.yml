@@ -8,9 +8,7 @@ on:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,91 +24,42 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Install Android command-line tools and SDK packages
-        run: |
-          set -e
-          echo "Installing Android command-line tools..."
-          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-          cd $ANDROID_SDK_ROOT/cmdline-tools
-          # download the command-line tools (latest known package)
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip -d $ANDROID_SDK_ROOT/cmdline-tools || true
-          # move to 'latest' folder expected by sdkmanager
-          if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools" ]; then
-            mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest || true
-          fi
-          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-33" "platforms;android-34" "platforms;android-35" "build-tools;33.0.2" "build-tools;34.0.0" "build-tools;35.0.0"
-          echo "Android SDK components installed."
+      - name: Install Android SDK (official)
+        uses: android-actions/setup-android@v3
 
-      - name: Install latest Android SDK
+      - name: Install Android SDK Platform 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Show Java and sdk versions
-        run: |
-          java -version
-          sdkmanager --list || true
-
-      - name: Install project dependencies
-        run: |
-          npm ci || npm install
+      - name: Install dependencies
+        run: npm ci || npm install
 
       - name: Prepare web assets
-        run: |
-          npm run prepare-web
+        run: npm run prepare-web
 
-      - name: Install Capacitor CLI and Android runtime
-        run: |
-          npm install @capacitor/cli@latest @capacitor/core@latest @capacitor/android@latest --no-save
+      - name: Install Capacitor
+        run: npm install @capacitor/cli@latest @capacitor/core@latest @capacitor/android@latest --no-save
 
-      - name: Add Android platform (will fail if it cannot be added)
-        run: |
-          set -e
-          echo "Adding Android platform (Capacitor)..."
-          npx cap add android
-          echo "Listing repo root after cap add:"
-          ls -la
-          echo "Listing android/ directory (if created):"
-          ls -la android || true
+      - name: Add Android platform
+        run: npx cap add android
 
-      - name: Update Android build.gradle to use SDK 35
+      - name: Update compileSdk/targetSdk/buildTools to 35
         run: |
-          set -e
-          if [ -f "android/app/build.gradle" ]; then
-            echo "Updating compileSdkVersion, targetSdkVersion, and buildToolsVersion to 35..."
-            sed -i 's/compileSdkVersion [0-9]\+/compileSdkVersion 35/g' android/app/build.gradle
-            sed -i 's/targetSdkVersion [0-9]\+/targetSdkVersion 35/g' android/app/build.gradle
-            sed -i 's/buildToolsVersion "[0-9.]\+"/buildToolsVersion "35.0.0"/g' android/app/build.gradle
-            echo "Updated android/app/build.gradle"
-          else
-            echo "android/app/build.gradle not found yet (will be created)"
-          fi
+          sed -i 's/compileSdkVersion [0-9]\+/compileSdkVersion 35/' android/app/build.gradle
+          sed -i 's/targetSdkVersion [0-9]\+/targetSdkVersion 35/' android/app/build.gradle
+          sed -i 's/buildToolsVersion "[0-9.]\+"/buildToolsVersion "35.0.0"/' android/app/build.gradle
 
-      - name: Copy web assets to Android
-        run: |
-          npx cap copy android || npx cap copy
+      - name: Copy web assets
+        run: npx cap copy android
 
       - name: Make gradlew executable
-        run: |
-          chmod +x android/gradlew || true
+        run: chmod +x android/gradlew
 
-      - name: Build APK (debug)
+      - name: Build APK (Debug)
         run: |
-          set -e
-          if [ ! -d "android" ]; then
-            echo "ERROR: android/ directory not found. 'npx cap add android' must create it."
-            echo "Workspace content:"; ls -la
-            exit 1
-          fi
           cd android
-          if [ ! -f "gradlew" ]; then
-            echo "gradlew not found in android/. Listing android/:"; ls -la
-            exit 1
-          fi
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
