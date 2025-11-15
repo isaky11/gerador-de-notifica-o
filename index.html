@@ -280,11 +280,26 @@
     let systemNotificationsEnabled = false;
     const enableBtn = document.getElementById('enableSystemBtn');
     if (enableBtn) enableBtn.addEventListener('click', async () => {
-      if (!('Notification' in window)) {
-        alert('Notificações não são suportadas neste navegador');
-        return;
-      }
       try {
+        // Tentar usar Capacitor LocalNotifications
+        if (typeof window !== 'undefined' && window.CapacitorPlugins && window.CapacitorPlugins.LocalNotifications) {
+          const { LocalNotifications } = window.CapacitorPlugins;
+          const { display } = await LocalNotifications.requestPermissions();
+          if (display === 'granted') {
+            systemNotificationsEnabled = true;
+            enableBtn.textContent = 'Notificações ativadas';
+            enableBtn.disabled = true;
+          } else {
+            alert('Permissão de notificação negada');
+          }
+          return;
+        }
+        
+        // Fallback para browser Notification API
+        if (!('Notification' in window)) {
+          alert('Notificações não são suportadas neste navegador');
+          return;
+        }
         const perm = await Notification.requestPermission();
         if (perm === 'granted') {
           systemNotificationsEnabled = true;
@@ -298,10 +313,30 @@
       }
     });
 
-    // helper: mostra notificação do sistema (apenas quando permissão concedida)
-    function showSystemNotification(title, body, icon, timestamp, data) {
+    // helper: mostra notificação do sistema (usa Capacitor LocalNotifications se disponível, senão browser Notification API)
+    async function showSystemNotification(title, body, icon, timestamp, data) {
       try {
         if (!systemNotificationsEnabled) return;
+        
+        // Tentar usar Capacitor LocalNotifications (funciona melhor em app Capacitor/Android)
+        if (typeof window !== 'undefined' && window.CapacitorPlugins && window.CapacitorPlugins.LocalNotifications) {
+          const { LocalNotifications } = window.CapacitorPlugins;
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                title: title,
+                body: body,
+                id: Math.floor(Math.random() * 1000000),
+                sound: true,
+                vibrate: [100, 50, 100]
+              }
+            ]
+          });
+          console.log('Notificação Capacitor enviada:', title);
+          return;
+        }
+        
+        // Fallback para browser Notification API
         if (Notification.permission !== 'granted') return;
         const opts = {
           body,
@@ -318,7 +353,7 @@
         };
         return n;
       } catch (err) {
-        console.warn('Erro ao criar notificação do sistema', err);
+        console.warn('Erro ao criar notificação:', err);
       }
     }
 

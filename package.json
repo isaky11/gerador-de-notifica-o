@@ -11,5 +11,7 @@
     "cap-open-android": "npx cap open android",
     "cap-open-ios": "npx cap open ios"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@capacitor/local-notifications": "latest"
+  }
 }
