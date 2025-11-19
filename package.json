@@ -1,0 +1,22 @@
+{
+  "name": "gerador-de-notificacao",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prepare-web": "rm -rf www && mkdir -p www && cp -r index.html img manifest.json sw.js www/ || true",
+    "serve-web": "npx http-server www -p 8080",
+    "cap-add-android": "npx cap add android",
+    "cap-add-ios": "npx cap add ios",
+    "cap-copy": "npx cap copy",
+    "cap-open-android": "npx cap open android",
+    "cap-open-ios": "npx cap open ios"
+  },
+  "devDependencies": {
+    "@capacitor/local-notifications": "latest"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4"
+  }
+}
